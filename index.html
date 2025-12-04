@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Sistema de Transporte - Versión Bonita</title>
+
+    <style>
+        /* estilos
+   - Se define una fuente general
+   - Se agrega un color de fondo suave
+   - Se usan tarjetas para separar secciones
+   - Se agregan sombras y bordes redondeados */
+
+        body {
+            font-family: Arial, sans-serif;
+            /* Tipo de letra */
+            background: #f2f5f9;
+            /* Fondo suave */
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            /* Ancho máximo centrado */
+            margin: auto;
+        }
+
+        /* Contenedores tipo tarjeta */
+        .card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            /* sombra suave */
+        }
+
+        h2,
+        h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        /* Campos de entrada grandes y limpios */
+        input,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccd;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        /* Diseño del botón */
+        button {
+            background: #3498db;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background: #2980b9;
+            /* tono más oscuro */
+        }
+
+        /* Área donde se imprimen resultados */
+        #out {
+            background: #fafafa;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            height: 250px;
+            /* Altura fija con scroll */
+            overflow: auto;
+            /* Barra de desplazamiento */
+            white-space: pre-wrap;
+            /* Respeta saltos de línea */
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 13px;
+            color: #888;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <!-- Contenedor principal -->
+    <div class="container">
+
+        <h2> Sistema de Transporte<br>Ian Cortes Leonardo Gallegos Cinthya Suarez</h2>
+
+        <!-- Tarjeta de entrada de datos -->
+        <div class="card">
+            <h3>Ingresar Datos</h3>
+
+            <!-- Campo oferta -->
+            <label>Oferta:</label>
+            <input id="of" value="20,30,25">
+
+            <!-- Campo demanda -->
+            <label>Demanda:</label>
+            <input id="de" value="10,25,15,25">
+
+            <!-- Matriz de costos -->
+            <label>Matriz de costos:</label>
+            <textarea id="co" rows="4">8,6,10,9
+9,7,4,2
+3,4,2,7</textarea>
+
+            <!-- Botón principal que ejecuta todo -->
+            <button onclick="run()">Resolver Problema de Transporte</button>
+        </div>
+
+        <!-- Tarjeta de resultados -->
+        <div class="card">
+            <h3>Resultados</h3>
+            <div id="out"></div>
+        </div>
+
+        <div class="footer">
+            Sistema simple de transporte — interfaz mejorada — desarrollado para uso académico
+        </div>
+
+    </div>
+
+    <script>
+        /* funciones básicas para convertir el texto a números */
+
+        /* Convierte "1,2,3" en [1,2,3] */
+        function L(t) {
+            return t.split(",").map(Number);
+        }
+
+        /* Convierte varias líneas en matriz:
+           1,2,3
+           4,5,6
+           > [[1,2,3],[4,5,6]]
+        */
+        function M(t) {
+            return t.trim().split("\n").map(
+                row => row.split(",").map(Number)
+            );
+        }
+
+        /* Método esquina Noroeste (NW) 
+           - Se para en la esquina de arriba a la izquierda
+           - Llena la celda con lo máximo posible
+           - Avanza a la derecha o abajo */
+        function nw(of, de) {
+            let m = of.length, n = de.length;
+            let s = [...Array(m)].map(() => Array(n).fill(0));
+            let o = of.slice(), d = de.slice();
+            let i = 0, j = 0;
+
+            while (i < m && j < n) {
+                let x = Math.min(o[i], d[j]); /* Asigna lo máximo posible */
+                s[i][j] = x;
+                o[i] -= x;
+                d[j] -= x;
+
+                /* Moverse a la siguiente celda */
+                if (o[i] == 0) i++;
+                else if (d[j] == 0) j++;
+            }
+            return s;
+        }
+
+        /* Método costo mínimo (CM)
+           1. Se recopilan todas las celdas con sus costos
+           2. Se ordenan de menor a mayor costo
+           3. Se asigna desde las rutas más baratas */
+        function cm(of, de, c) {
+            let m = of.length, n = de.length;
+            let s = [...Array(m)].map(() => Array(n).fill(0));
+            let o = of.slice(), d = de.slice();
+            let lista = [];
+
+            /* Armar lista de todas las celdas */
+            for (let i = 0; i < m; i++)
+                for (let j = 0; j < n; j++)
+                    lista.push([c[i][j], i, j]);
+
+            /* Ordenar por costo */
+            lista.sort((a, b) => a[0] - b[0]);
+
+            /* Llenar en ese orden */
+            for (let cell of lista) {
+                let i = cell[1], j = cell[2];
+                if (o[i] > 0 && d[j] > 0) {
+                    let q = Math.min(o[i], d[j]);
+                    s[i][j] = q;
+                    o[i] -= q;
+                    d[j] -= q;
+                }
+            }
+            return s;
+        }
+
+        /* Método vogel 
+           - Calcula penalizaciones de filas y columnas
+           - Elige donde se “pierde más” si no se elige la mejor */
+        function vg(of, de, c) {
+            let m = of.length, n = de.length;
+            let s = [...Array(m)].map(() => Array(n).fill(0));
+            let o = of.slice(), d = de.slice();
+
+            /* Penalización fila */
+            function penF(i) {
+                let r = c[i].filter((v, j) => d[j] > 0).sort((a, b) => a - b);
+                return r.length > 1 ? r[1] - r[0] : 0;
+            }
+
+            /* Penalización columna */
+            function penC(j) {
+                let r = [];
+                for (let i = 0; i < m; i++) if (o[i] > 0) r.push(c[i][j]);
+                r.sort((a, b) => a - b);
+                return r.length > 1 ? r[1] - r[0] : 0;
+            }
+
+            /* Bucle principal */
+            while (true) {
+                if (o.every(x => x == 0) || d.every(x => x == 0)) break;
+
+                let best = ["f", 0, -1]; /* tipo, índice, penalización */
+
+                /* Revisar filas */
+                for (let i = 0; i < m; i++) {
+                    let p = penF(i);
+                    if (o[i] > 0 && p > best[2]) best = ["f", i, p];
+                }
+
+                /* Revisar columnas */
+                for (let j = 0; j < n; j++) {
+                    let p = penC(j);
+                    if (d[j] > 0 && p > best[2]) best = ["c", j, p];
+                }
+
+                let i, j;
+
+                /* Si ganó fila */
+                if (best[0] == "f") {
+                    i = best[1];
+                    j = c[i].reduce(
+                        (a, v, k) => (d[k] > 0 && v < c[i][a] ? k : a),
+                        d.findIndex(x => x > 0)
+                    );
+                }
+                else { /* Si ganó columna */
+                    j = best[1];
+                    i = c.reduce(
+                        (a, row, k) => (o[k] > 0 && row[j] < c[a][j] ? k : a),
+                        o.findIndex(x => x > 0)
+                    );
+                }
+
+                /* Asignar */
+                let q = Math.min(o[i], d[j]);
+                s[i][j] = q;
+                o[i] -= q;
+                d[j] -= q;
+            }
+
+            return s;
+        }
+
+        /* Cálculo del costo total  */
+        function cost(sol, c) {
+            let t = 0;
+            for (let i = 0; i < sol.length; i++)
+                for (let j = 0; j < sol[0].length; j++)
+                    t += sol[i][j] * c[i][j];
+            return t;
+        }
+
+        /* Método MODI  */
+        function modi(sol, c) {
+            let m = sol.length, n = sol[0].length;
+
+            /* Detectar celdas básicas */
+            function bas() {
+                let b = [];
+                for (let i = 0; i < m; i++)
+                    for (let j = 0; j < n; j++)
+                        if (sol[i][j] > 0) b.push([i, j]);
+                return b;
+            }
+
+            /* Iteraciones limitadas */
+            for (let z = 0; z < 10; z++) {
+                let b = bas();
+                let u = Array(m).fill(null),
+                    v = Array(n).fill(null);
+
+                u[b[0][0]] = 0; /* primera fila = 0 */
+
+                /* Resolver u/v */
+                let ch = true;
+                while (ch) {
+                    ch = false;
+                    for (let x of b) {
+                        let i = x[0], j = x[1];
+                        if (u[i] != null && v[j] == null) { v[j] = c[i][j] - u[i]; ch = true; }
+                        if (v[j] != null && u[i] == null) { u[i] = c[i][j] - v[j]; ch = true; }
+                    }
+                }
+
+                /* Buscar delta negativo */
+                let md = 0, me = null;
+                for (let i = 0; i < m; i++) {
+                    for (let j = 0; j < n; j++) {
+                        if (sol[i][j] == 0 && u[i] != null && v[j] != null) {
+                            let dlt = c[i][j] - (u[i] + v[j]);
+                            if (dlt < md) { md = dlt; me = [i, j]; }
+                        }
+                    }
+                }
+
+                /* Si no hay mejora, regresar */
+                if (!me) return sol;
+
+                /* Construir ciclo súper simple */
+                let i = me[0], j = me[1];
+                let cyc = [[i, j]];
+
+                for (let x = 0; x < n; x++) if (sol[i][x] > 0) cyc.push([i, x]);
+                for (let x = 0; x < m; x++) if (sol[x][j] > 0) cyc.push([x, j]);
+
+                cyc = cyc.slice(0, 4);
+
+                /* Ajuste de cantidades */
+                let rest = sol[cyc[1][0]][cyc[1][1]];
+
+                for (let k = 0; k < cyc.length; k++) {
+                    let a = cyc[k][0], b = cyc[k][1];
+                    if (k % 2 == 0) sol[a][b] += rest;
+                    else sol[a][b] -= rest;
+                }
+            }
+
+            return sol;
+        }
+
+        /* Función principal */
+        function run() {
+
+            /* Leer datos desde los campos HTML */
+            let of = L(document.getElementById("of").value);
+            let de = L(document.getElementById("de").value);
+            let co = M(document.getElementById("co").value);
+
+            /* Generar soluciones iniciales */
+            let s1 = nw(of, de);
+            let s2 = cm(of, de, co);
+            let s3 = vg(of, de, co);
+
+            /* Escoger la mejor */
+            let best = s1;
+            if (cost(s2, co) < cost(best, co)) best = s2;
+            if (cost(s3, co) < cost(best, co)) best = s3;
+
+            /* Copiar la mejor y optimizarla */
+            let opt = JSON.parse(JSON.stringify(best));
+            opt = modi(opt, co);
+
+            /* Imprimir resultados */
+            document.getElementById("out").textContent =
+                "Método Noroeste:\n" + JSON.stringify(s1) + "\nCosto: " + cost(s1, co) + "\n\n" +
+                "Método Costo Mínimo:\n" + JSON.stringify(s2) + "\nCosto: " + cost(s2, co) + "\n\n" +
+                "Método Vogel:\n" + JSON.stringify(s3) + "\nCosto: " + cost(s3, co) + "\n\n" +
+                "SOLUCIÓN OPTIMIZADA (MODI):\n" + JSON.stringify(opt) + "\nCosto: " + cost(opt, co);
+        }
+    </script>
+
+</body>
+
+</html>
